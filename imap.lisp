@@ -1,21 +1,3 @@
-#+(version= 7 0)
-(sys:defpatch "imap" 1
-  "v1: fetch-letter-sequence support."
-  :type :system
-  :post-loadable t)
-
-#+(version= 8 0)
-(sys:defpatch "imap" 1
-  "v1: fetch-letter-sequence support."
-  :type :system
-  :post-loadable t)
-
-#+(version= 8 1)
-(sys:defpatch "imap" 1
-  "v1: Add ssl/tls support for both imap/pop connections."
-  :type :system
-  :post-loadable t)
-
 ;; -*- mode: common-lisp; package: net.post-office -*-
 ;;
 ;; imap.cl
@@ -44,7 +26,8 @@
 
 
 (defpackage :net.post-office
-  (:use :lisp :excl)
+  (:nicknames #:post-office)
+  (:use :cl :excl)
   (:export
    #:address-name
    #:address-additional
@@ -324,8 +307,7 @@
        ;; a condition either has a server-string or it has a
        ;; format-control string
        (format stream "Post Office condition: ~s~%" identifier)
-       (if* (and (slot-boundp con 'excl::format-control)
-		 (excl::simple-condition-format-control con))
+       (if* (and (excl::simple-condition-format-control con))
 	  then (apply #'format stream
 		      (excl::simple-condition-format-control con)
 		      (excl::simple-condition-format-arguments con)))
@@ -1633,7 +1615,7 @@
       (get-line-from-server mb)
 
     (if* *debug-imap*
-       then (format t "from server: " count)
+       then (format t "from server: ")
 	    (dotimes (i count)(write-char (schar line i)))
 	    (terpri))
 
@@ -1922,7 +1904,7 @@
 
 
 ;  this used to be exported from the excl package
-#+(version>= 6 0)
+;; #+(version>= 6 0)
 (defvar *keyword-package* (find-package :keyword))
 
 (defun kwd-intern-possible-list (form)
@@ -2102,16 +2084,16 @@
 
 (defvar *line-buffers* nil)
 
-#+(version>= 8 1)
-(defvar *line-buffers-lock* (make-basic-lock :name "line-buffers"))
+;; #+(version>= 8 1)
+;; (defvar *line-buffers-lock* (make-basic-lock :name "line-buffers"))
 
 (defmacro with-locked-line-buffers (&rest body)
-#+(version>= 8 1)
-  `(with-locked-structure (*line-buffers-lock*
-			   :non-smp :without-scheduling)
-     ,@body)
-#-(version>= 8 1)
-  `(sys::without-scheduling ,@body)
+;; #+(version>= 8 1)
+;;   `(with-locked-structure (*line-buffers-lock*
+;; 			   :non-smp :without-scheduling)
+;;      ,@body)
+;; #-(version>= 8 1)
+  `(mp:without-scheduling ,@body)
   )
 
 (defun get-line-buffer (size)
