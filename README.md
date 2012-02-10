@@ -1,3 +1,12 @@
+Preamble
+========
+
+What follows is the original documentation of Allegro Post-Office
+library.  In this port to non-Allegro Lisps the system has been
+renamed from "imap" to "post-office" and the package "net.post-office"
+received a nickname "post-office".  SMTP part of the port is not
+complete because it relies on yet unavailable components.
+
 imap: A common lisp library for sending and receiving email.
 ============================================================
 
