@@ -1,28 +1,3 @@
-#+(version= 8 1)
-(sys:defpatch "smtp" 1
-  "v1: add smtp support for ssl connections and STARTTLS negotiation."
-  :type :system
-  :post-loadable t)
-
-#+(version= 8 0) ;; not current with latest sources
-(sys:defpatch "smtp" 5
-  "v1: send-letter w/attachments; send-smtp* can take streams;
-v2: add :port argument to send-letter, send-smtp, send-smtp-auth;
-v3: fix incompatibility introduced in v2;
-v4: remove stray force-output of t;
-v5: send-smtp-1: New external-format keyword arg."
-  :type :system
-  :post-loadable t)
-
-#+(version= 7 0) ;; not current with latest sources
-(sys:defpatch "smtp" 5
-  "v2: send-letter w/attachments; send-smtp* can take streams;
-v3: add :port argument to send-letter, send-smtp, send-smtp-auth;
-v4: fix incompatibility introduced in v3;
-v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
-  :type :system
-  :post-loadable t)
-
 ;; -*- mode: common-lisp; package: net.post-office -*-
 ;;
 ;; smtp.cl
@@ -60,7 +35,7 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
 
 
 (defpackage :net.post-office
-  (:use #:lisp #:excl)
+  (:use #:cl #:excl)
   (:export
    #:send-letter
    #:send-smtp
@@ -671,8 +646,9 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 
 (eval-when (compile eval)
   (defmacro ipaddrp (obj)
-    #+(version>= 8 0) `(socket:ipaddrp ,obj)
-    #-(version>= 8 0) `(and (integerp ,obj) (<= 0 ,obj #.(1- (expt 2 32)))))
+    ;; #+(version>= 8 0) `(socket:ipaddrp ,obj)
+    ;; #-(version>= 8 0)
+    `(and (integerp ,obj) (<= 0 ,obj #.(1- (expt 2 32)))))
   )
 
 (defun determine-mail-server (name)
