@@ -1904,7 +1904,8 @@
 
 
 ;  this used to be exported from the excl package
-;; #+(version>= 6 0)
+#+(or (and allegro (version>= 6 0))
+      (not allegro))
 (defvar *keyword-package* (find-package :keyword))
 
 (defun kwd-intern-possible-list (form)
@@ -2084,15 +2085,15 @@
 
 (defvar *line-buffers* nil)
 
-;; #+(version>= 8 1)
-;; (defvar *line-buffers-lock* (make-basic-lock :name "line-buffers"))
+#+(and allegro (version>= 8 1))
+(defvar *line-buffers-lock* (make-basic-lock :name "line-buffers"))
 
 (defmacro with-locked-line-buffers (&rest body)
-;; #+(version>= 8 1)
-;;   `(with-locked-structure (*line-buffers-lock*
-;;                         :non-smp :without-scheduling)
-;;      ,@body)
-;; #-(version>= 8 1)
+  #+(and allegro (version>= 8 1))
+  `(with-locked-structure (*line-buffers-lock*
+                        :non-smp :without-scheduling)
+     ,@body)
+  #-(and allegro (version>= 8 1))
   `(mp:without-scheduling ,@body)
   )
 
