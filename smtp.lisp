@@ -32,7 +32,7 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
-;; the GNU Lesser General Public License as published by 
+;; the GNU Lesser General Public License as published by
 ;; the Free Software Foundation, as clarified by the AllegroServe
 ;; prequel found in license-allegroserve.txt.
 ;;
@@ -41,11 +41,11 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
 ;; merchantability or fitness for a particular purpose.  See the GNU
 ;; Lesser General Public License for more details.
 ;;
-;; Version 2.1 of the GNU Lesser General Public License is in the file 
+;; Version 2.1 of the GNU Lesser General Public License is in the file
 ;; license-lgpl.txt that was distributed with this file.
 ;; If it is not present, you can access it from
 ;; http://www.gnu.org/copyleft/lesser.txt (until superseded by a newer
-;; version) or write to the Free Software Foundation, Inc., 59 Temple Place, 
+;; version) or write to the Free Software Foundation, Inc., 59 Temple Place,
 ;; Suite 330, Boston, MA  02111-1307  USA
 ;;
 ;;
@@ -61,7 +61,7 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
 
 (defpackage :net.post-office
   (:use #:lisp #:excl)
-  (:export 
+  (:export
    #:send-letter
    #:send-smtp
    #:send-smtp-auth
@@ -76,14 +76,14 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
 
 ;; the exported functions:
 
-;; (send-letter "mail-server" "from" "to" "message" 
+;; (send-letter "mail-server" "from" "to" "message"
 ;;		&key cc bcc subject reply-to headers)
-;;								
-;;  
+;;
+;;
 ;;    sends a message to the mail server (which may be a relay server
 ;;    or the final destination).  "from" is the address to be given
 ;;    as the sender.  "to" can be a string or a list of strings naming
-;;    recipients.   
+;;    recipients.
 ;;    "message" is the message to be sent.  It can be a string or a stream.
 ;;    cc and bcc can be either be a string or a  list of strings
 ;;	naming recipients.  All cc's and bcc's are sent the message
@@ -93,7 +93,7 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
 ;;    headers is a string or list of stings. These are raw header lines
 ;;	added to the header build to send out.
 ;;
-;;    This builds a header and inserts the optional cc, bcc, 
+;;    This builds a header and inserts the optional cc, bcc,
 ;;    subject and reply-to  lines.
 ;;
 ;; (send-smtp "mail-server" "from" "to" &rest messages)
@@ -123,9 +123,9 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
   ;; code of the response.
   ;; smtp-response, if given, will be bound to string that is
   ;;  the actual response
-  ;; 
+  ;;
   (let ((response-class (gensym)))
-    `(multiple-value-bind (,response-class 
+    `(multiple-value-bind (,response-class
 			   ,@(if* smtp-response then (list smtp-response))
 			   ,@(if* response-code then (list response-code)))
 	 (progn (force-output ,smtp-stream)
@@ -152,7 +152,7 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
 		     "SMTP transaction failed.  We said: ~s, and the server replied: ~s"
 		     (quote ,sent)
 		     (quote ,smtp-response))))
-	 
+
 	 (response-case (,stream ,smtp-response ,response-code)
 	   ,@case-clauses)))))
 
@@ -166,69 +166,69 @@ v5: rm stray force-output of t; send-smtp-1: New external-format keyword arg."
   ;;
   ;; see documentation at the head of this file
   ;;
-  
+
   (if* (mime-part-constructed-p message)
      then (if* (and (not (multipart-mixed-p message)) attachments)
 	     then (error "~
 attachments are not allowed for non-multipart/mixed messages."))
      else (let ((part
 		 (if* (streamp message)
-		    then 
+		    then
 			 (make-mime-part :file message)
 		  elseif (stringp message)
 		    then (make-mime-part :text message)
 		    else (error "~
 message must be a string, stream, or mime-part-constructed, not ~s" message))))
-	    
+
 	    (setf message
 	      (if* attachments
 		 then (make-mime-part :subparts (list part))
 		 else part))))
-  
+
   (let ((hdrs nil)
 	(user-headers "")
-	(tos (if* (stringp to) 
-		then (list to) 
+	(tos (if* (stringp to)
+		then (list to)
 	      elseif (consp to)
 		then to
 		else (error "to should be a string or list, not ~s" to)))
 	(ccs
 	 (if* (null cc)
 	    then nil
-	  elseif (stringp cc) 
-	    then (list cc) 
+	  elseif (stringp cc)
+	    then (list cc)
 	  elseif (consp cc)
 	    then cc
 	    else (error "cc should be a string or list, not ~s" cc)))
 	(bccs (if* (null bcc)
 		 then nil
-	       elseif (stringp bcc) 
-		 then (list bcc) 
+	       elseif (stringp bcc)
+		 then (list bcc)
 	       elseif (consp bcc)
 		 then bcc
 		 else (error "bcc should be a string or list, not ~s" bcc))))
-    
+
     (setf hdrs
       (with-output-to-string (hdrs)
-	(macrolet ((already-have (name) 
+	(macrolet ((already-have (name)
 		     `(mime-get-header ,name message)))
-	  
+
 	  ;; Give priority to headers already provided in a mime-part.
 	  (if* (not (already-have "From"))
 	     then (format hdrs "From: ~a~%" from))
-	
+
 	  (if* (not (already-have "To"))
 	     then (format hdrs "To: ~a~%" (list-to-delimited-string tos ", ")))
-	
+
 	  (if* (and ccs (not (already-have "Cc")))
 	     then (format hdrs "Cc: ~a~%" (list-to-delimited-string ccs ", ")))
-	
+
 	  (if* (and subject (not (already-have "Subject")))
 	     then (format hdrs "Subject: ~a~%" subject))
-	
+
 	  (if* (and reply-to (not (already-have "Reply-To")))
 	     then (format hdrs "Reply-To: ~a~%" reply-to)))))
-    
+
     (if* headers
        then (if* (stringp headers)
 	       then (setq headers (list headers))
@@ -237,7 +237,7 @@ message must be a string, stream, or mime-part-constructed, not ~s" message))))
 	       else (error "Unknown headers format: ~s." headers))
 	    (setf user-headers
 	      (with-output-to-string (header)
-		(dolist (h headers) 
+		(dolist (h headers)
 		  (format header "~a~%" h)))))
 
     ;; Temporarily modifies 'message', which may be user-provided.
@@ -245,7 +245,7 @@ message must be a string, stream, or mime-part-constructed, not ~s" message))))
       (if* attachments
 	 then (if (not (consp attachments))
 		  (setf attachments (list attachments)))
-	    
+
 	      (let (res)
 		(dolist (attachment attachments)
 		  (if* (mime-part-constructed-p attachment)
@@ -257,23 +257,23 @@ message must be a string, stream, or mime-part-constructed, not ~s" message))))
 Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 				 attachment))
 		  (push attachment res))
-	      
+
 		(setf (mime-part-parts message) (append parts-save res))))
-      
+
       (with-mime-part-constructed-stream (s message)
 	(send-smtp-auth server from (append tos ccs bccs)
 			login password
 			hdrs
 			user-headers
 			s))
-      
+
       (setf (mime-part-parts message) parts-save)
       t)))
-    
-    
+
+
 (defun send-smtp (server from to &rest messages)
   (send-smtp-1 server from to nil nil messages))
-	  
+
 (defun send-smtp-auth (server from to login password &rest messages)
   (send-smtp-1 server from to login password messages))
 
@@ -291,15 +291,15 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 
     (unwind-protect
 	(progn
-	  
+
 	  (smtp-send-recv (sock (format nil "MAIL from:<~a>" from) msg)
 	    (2 ;; cool
 	     nil
 	     )
 	    (t (smtp-transaction-error)))
-	  
-	  (let ((tos (if* (stringp to) 
-			then (list to) 
+
+	  (let ((tos (if* (stringp to)
+			then (list to)
 		      elseif (consp to)
 			then to
 			else (error "to should be a string or list, not ~s"
@@ -310,24 +310,24 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 		 nil
 		 )
 		(t (smtp-transaction-error)))))
-	
+
 	  (smtp-send-recv (sock "DATA" msg)
 	    (3 ;; cool
 	     nil)
 	    (t (smtp-transaction-error)))
-	  
-	  
-	  
-	  (let ((at-bol t) 
+
+
+
+	  (let ((at-bol t)
 		(prev-ch nil)
 		ch stream)
 	    (dolist (message messages)
 	      (when message
 		(setf stream (if* (streamp message)
-				then message 
+				then message
 				else (make-buffer-input-stream
-				      (string-to-octets 
-				       message 
+				      (string-to-octets
+				       message
 				       :null-terminate nil
 				       :external-format external-format))))
 
@@ -346,11 +346,11 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 	  (write-char #\return sock) (write-char #\linefeed sock)
 	  (write-char #\. sock)
 	  (write-char #\return sock) (write-char #\linefeed sock)
-	
+
 	  (response-case (sock msg)
 	    (2 nil ; (format t "Message sent to ~a~%" to)
 	       )
-			 
+
 	    (t (error "message not sent: ~s" msg)))
 
 	  (smtp-send-recv (sock "QUIT" msg)
@@ -362,9 +362,9 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 
 (defun connect-to-mail-server (server login password)
   ;; make that initial connection to the mail server
-  ;; returning a socket connected to it and 
+  ;; returning a socket connected to it and
   ;; signaling an error if it can't be made.
-  
+
   (let ((use-port 25) ;; standard SMTP port
 	ssl-args
 	ssl
@@ -391,20 +391,20 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 	      (if* match
 		 then (setf server m1)
 		      (setf use-port (parse-integer m2)))))
-    
+
     (let ((ipaddr (determine-mail-server server))
 	  (sock)
 	  (ok))
-      
+
       (if* (null ipaddr)
 	 then (error "Can't determine ip address for mail server ~s" server))
-      
+
       (setq sock (socket:make-socket :remote-host ipaddr
 				     :remote-port use-port
 				     ))
       (when ssl
 	(setq sock (apply #'acl-socket:make-ssl-client-stream sock ssl-args)))
-      
+
       (unwind-protect
 	  (tagbody
 	    (response-case (sock msg)
@@ -430,21 +430,21 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 		 elseif (and mechs login password
 			     (setq auth-mechs (car (member "LOGIN" mechs
 						      :test #'(lambda (x y) (search x y))))))
-		   then (setf sock 
+		   then (setf sock
 			  (smtp-authenticate sock server auth-mechs login password)))))
-	  
+
 	    ;; all is good
 	    (setq ok t))
-      
+
 	;; cleanup:
-	(if* (null ok) 
+	(if* (null ok)
 	   then (close sock :abort t)
 		(setq sock nil)))
-    
+
       ;; return:
       sock
       )))
-	    
+
 
 ;; Returns string with mechanisms, or nil if none.
 ;; This may need to be expanded in the future as we support
@@ -482,29 +482,29 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 	(response-case (sock msg)
 	  (3  ;; need more interaction
 	   (multiple-value-setq (res response)
-	     (net.sasl:sasl-step 
-	      ctx 
+	     (net.sasl:sasl-step
+	      ctx
 	      (base64-string-to-usb8-array (subseq msg 4))))
-	   (smtp-command sock "~a" 
+	   (smtp-command sock "~a"
 			 (usb8-array-to-base64-string response nil)))
 	  (2 ;; server is satisfied.
 	   ;; Make sure the auth process really completed
 	   (if (not (net.sasl:sasl-conn-auth-complete-p ctx))
 	       (error "SMTP server indicated authentication complete before mechanisms was satisfied"))
-	   ;; It's all good.  
+	   ;; It's all good.
 	   (return)) ;; break from loop
 	  (t
 	   (error "SMTP authentication failed: ~a" msg)))))
-    
+
     ;; Reach here if authentication completed.
     ;; If a security layer was negotiated, return an encapsulated sock,
     ;; otherwise just return the original sock.
     (if (net.sasl:sasl-conn-security-layer-p ctx)
 	(net.sasl:sasl-make-stream ctx sock :close-base t)
       sock)))
-  
 
-  
+
+
 (defun test-email-address (address)
   ;; test to see if we can determine if the address is valid
   ;; return nil if the address is bogus
@@ -512,7 +512,7 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
   (if* (or (not (stringp address))
 	   (zerop (length address)))
      then (error "mail address should be a non-empty string: ~s" address))
-  
+
   ; split on the @ sign
   (let (name hostname)
     (let ((pos (position #\@ address)))
@@ -525,10 +525,10 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 	      (return-from test-email-address nil)
 	 else (setq name (subseq address 0 pos)
 		    hostname (subseq address (1+ pos)))))
-  
+
     (let ((sock (ignore-errors (connect-to-mail-server hostname nil nil))))
       (if* (null sock) then (return-from test-email-address nil))
-    
+
       (unwind-protect
 	  (progn
 	    (smtp-send-recv (sock (format nil "VRFY ~a" name) msg code)
@@ -549,21 +549,21 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 		  else t))
 	      (t t)))
 	(close sock :abort t)))))
-	    
-	    
-    
-    
-    
-	    
-	    
-	    
 
 
 
 
 
-	
-      
+
+
+
+
+
+
+
+
+
+
 (defun wait-for-response (stream)
   ;; read the response of the smtp server.
   ;; collect it all in a string.
@@ -676,13 +676,13 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
   )
 
 (defun determine-mail-server (name)
-  ;; return the ipaddress to be used to connect to the 
+  ;; return the ipaddress to be used to connect to the
   ;; the mail server.
   ;; name is any method for naming a machine:
   ;;   ip address (binary)
   ;;   string with dotted ip address
   ;;   string naming a domain
-  ;; we can only do the mx lookup for the third case, the rest 
+  ;; we can only do the mx lookup for the third case, the rest
   ;; we just return the ipaddress for what we were given
   ;;
   (let (ipaddr)
@@ -700,16 +700,16 @@ Attachments must be filenames, streams, or mime-part-constructed, not ~s"
 			 else (dolist (suffix socket::*domain-search-list*
 					(socket:dns-lookup-hostname name))
 				(declare (special socket:*domain-search-list*))
-				(let ((name 
+				(let ((name
 				       (concatenate 'string name "." suffix)))
 				  (setq res (socket:dns-query name :type :mx))
 				  (if* (and res (cadr res))
 				     then (return (cadr res)))))))
-			      
-			      
+
+
 	       else ; just do a hostname lookup
 		    (ignore-errors (socket:lookup-hostname name))))))
-		    
-  
-    
+
+
+
 (provide :smtp)
