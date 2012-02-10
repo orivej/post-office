@@ -1,5 +1,6 @@
 #+sbcl
-(require '#:sb-simple-streams)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (require '#:sb-simple-streams))
 
 (rename-package 'acl-compat.mp 'acl-compat.mp
                 (union '(mp) (package-nicknames 'acl-compat.mp)))
@@ -17,7 +18,7 @@
 #+sbcl
 (import 'sb-simple-streams:read-sequence)
 
-(in-package #:excl)
+(in-package #:acl-compat.excl)
 ;; From PJB's cesarum.utility
 (defmacro while (condition &body body)
   "While loop."
