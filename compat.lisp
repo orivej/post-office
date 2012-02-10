@@ -9,7 +9,7 @@
 
 (in-package #:socket)
 (import 'cl+ssl:make-ssl-client-stream)
-(export '#:make-ssl-client-stream)
+(export 'make-ssl-client-stream)
 
 (in-package #:cl-user)
 #+sbcl
