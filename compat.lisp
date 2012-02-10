@@ -8,9 +8,8 @@
                 (union '(excl) (package-nicknames 'acl-compat.excl)))
 
 (in-package #:socket)
-(defvar make-ssl-client-stream)
-(setf (symbol-function 'make-ssl-client-stream) (symbol-function 'cl+ssl:make-ssl-client-stream))
-(export 'make-ssl-client-stream)
+(import 'cl+ssl:make-ssl-client-stream)
+(export '#:make-ssl-client-stream)
 
 (in-package #:cl-user)
 #+sbcl
