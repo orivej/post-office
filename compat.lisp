@@ -8,7 +8,9 @@
                 (union '(excl) (package-nicknames 'acl-compat.excl)))
 
 (in-package #:socket)
+(import 'cl+ssl)
 (export 'make-ssl-client-stream)
+(export 'make-ssl-server-stream)
 
 (in-package #:cl-user)
 #+sbcl
