@@ -377,7 +377,7 @@
       (setq sock (socket:make-socket :remote-host server
                                      :remote-port port))
       (when ssl
-        (setq sock (apply #'socket:make-ssl-client-stream sock ssl-args)))
+        (setq sock (apply #'cl+ssl:make-ssl-client-stream sock ssl-args)))
 
       (values sock starttls))) )
 
@@ -422,7 +422,7 @@
                                         (check-for-success mb cmd count extra comment
                                                            "STARTTLS")
                                         (setf (post-office-socket mb)
-                                          (socket:make-ssl-client-stream
+                                          (cl+ssl:make-ssl-client-stream
                                            (post-office-socket mb) :method :tlsv1)))))))
 
     ; now login
@@ -508,7 +508,7 @@
         (when (and capabilities (match-re "STLS" capabilities :case-fold t
                                           :return nil))
           (send-pop-command-get-results pop "STLS")
-          (setf (post-office-socket pop) (socket:make-ssl-client-stream
+          (setf (post-office-socket pop) (cl+ssl:make-ssl-client-stream
                                           (post-office-socket pop) :method :tlsv1)))))
 
     ; now login
