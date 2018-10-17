@@ -293,28 +293,36 @@
     ;; keyword identifying the error (or :unknown)
     :reader po-condition-identifier
     :initform :unknown
-    :initarg :identifier
-    )
+    :initarg :identifier)
    (server-string
     ;; message from the imap server
     :reader po-condition-server-string
     :initform ""
-    :initarg :server-string
-    ))
+    :initarg :server-string)
+   (message
+    :reader po-condition-message
+    :initform ""
+    :initarg :message)
+   (arguments
+    :reader po-condition-arguments
+    :initform nil
+    :initarg :arguments))
+  
   (:report
    (lambda (con stream)
      (with-slots (identifier server-string) con
        ;; a condition either has a server-string or it has a
        ;; format-control string
        (format stream "Post Office condition: ~s~%" identifier)
-       (if* (and (excl::simple-condition-format-control con))
-          then (apply #'format stream
-                      (excl::simple-condition-format-control con)
-                      (excl::simple-condition-format-arguments con)))
-       (if* server-string
-          then (format stream
-                       "~&Message from server: ~s"
-                       (string-left-trim " " server-string)))))))
+       (unless (string= (po-condition-message con)
+                        "")
+         (apply #'format stream
+                (po-condition-message con)
+                (po-condition-arguments con)))
+       (when server-string
+         (format stream
+                 "~&Message from server: ~s"
+                 (string-left-trim " " server-string)))))))
 
 
 
@@ -331,17 +339,16 @@
   (signal (make-instance 'po-condition
             :identifier identifier
             :server-string server-string
-            :format-control format-control
-            :format-arguments format-arguments
-            )))
+            :message format-control
+            :arguments format-arguments)))
 
 (defun po-error (identifier &key server-string
                       format-control format-arguments)
   (error (make-instance 'po-error
             :identifier identifier
             :server-string server-string
-            :format-control format-control
-            :format-arguments format-arguments)))
+            :message format-control
+            :arguments format-arguments)))
 
 
 
@@ -372,12 +379,16 @@
            (ssl-args (cdr server-info))
            ssl port starttls sock)
       (setq ssl (pop-keyword :ssl ssl-args))
-      (setq port (or (pop-keyword :port ssl-args) (server-port ssl server-type)))
+      (setq port (or (pop-keyword :port ssl-args)
+                     (server-port ssl server-type)))
       (setq starttls (pop-keyword :starttls ssl-args))
       (setq sock (socket:make-socket :remote-host server
                                      :remote-port port))
       (when ssl
-        (setq sock (apply #'socket:make-ssl-client-stream sock ssl-args)))
+        (setq sock (apply #'cl+ssl:make-ssl-client-stream
+                          sock
+                          :external-format :iso-8859-1
+                          ssl-args)))
 
       (values sock starttls))) )
 
@@ -533,22 +544,23 @@
             "~a ~a~a" tag command *crlf*)
     (force-output (post-office-socket mb))
 
-    (if* *debug-imap*
-       then (format t
-                    "~a ~a~a" tag command *crlf*)
-            (force-output))
+    (when *debug-imap*
+      (format t
+              "~a ~a~a" tag command *crlf*)
+      (force-output))
+    
     (loop
-      (multiple-value-bind (got-tag cmd count extra comment)
-          (get-and-parse-from-imap-server mb)
-        (if* (eq got-tag :untagged)
-           then (funcall untagged-handler mb cmd count extra comment)
-         elseif (equal tag got-tag)
-           then (funcall tagged-handler mb cmd count extra comment)
-                (return)
-           else (po-error :error-response
-                          :format-control "received tag ~s out of order"
-                          :format-arguments (list got-tag)
-                          :server-string comment))))))
+       (multiple-value-bind (got-tag cmd count extra comment)
+           (get-and-parse-from-imap-server mb)
+         (if* (eq got-tag :untagged)
+            then (funcall untagged-handler mb cmd count extra comment)
+          elseif (equal tag got-tag)
+            then (funcall tagged-handler mb cmd count extra comment)
+                 (return)
+            else (po-error :error-response
+                           :format-control "received tag ~s out of order"
+                           :format-arguments (list got-tag)
+                           :server-string comment))))))
 
 
 (defun get-next-tag ()
@@ -1299,6 +1311,29 @@
             (bss-int search str)
             (get-output-stream-string str))))
 
+(defgeneric format-date-for-imap (value)
+  (:method ((val t))
+    (po-error :syntax-error
+              :format-control "illegal value for date search ~s"
+              :format-arguments (list val)))
+  (:method ((val integer))
+    (universal-time-to-rfc822-date val))
+  
+  (:method ((val local-time:timestamp))
+    (format-date-for-imap
+     (local-time:timestamp-to-universal val)))
+  
+  (:method ((val string))
+    (cond
+      ((cl-ppcre:scan "^\\d{4}-\\d{2}-\\d{2}" val)
+       ;; If this is a date like 2018-10-05, then we need
+       ;; to transform it into the date suitable for IMAP:
+       ;; 5-Oct-2018, but it will be done automatically
+       ;; if we convert the string into the local-time:timestamp.
+       (format-date-for-imap (local-time:parse-timestring val)))
+      ;; Otherwise we just try to use the string as is.
+      (t val))))
+
 (defun bss-int (search str)
   ;;* it turns out that imap (on linux) is very picky about spaces....
   ;; any extra whitespace will result in failed searches
@@ -1331,7 +1366,7 @@
              ;; a sequence of messages
              (do* ((xsrch srch (cdr xsrch))
                    (val (car xsrch) (car xsrch)))
-                 ((null xsrch))
+                  ((null xsrch))
                (if* (integerp val)
                   then (format str "~s" val)
                 elseif (and (consp val)
@@ -1348,22 +1383,13 @@
              (do* ((x-args args (cdr x-args))
                    (val (car x-args) (car x-args))
                    (x-arginfo arginfo (cdr x-arginfo)))
-                 ((null x-args))
+                  ((null x-args))
                (ecase (car x-arginfo)
                  (:str
                   ; print it as a string
                   (format str " \"~a\"" (car x-args)))
                  (:date
-
-                  (if* (integerp val)
-                     then (setq val (universal-time-to-rfc822-date
-                                     val))
-                   elseif (not (stringp val))
-                     then (po-error :syntax-error
-                                    :format-control "illegal value for date search ~s"
-                                    :format-arguments (list val)))
-                  ;; val is now a string
-                  (format str " ~s" val))
+                  (format str " ~s" (format-date-for-imap val)))
                  (:number
 
                   (if* (not (integerp val))
@@ -1945,6 +1971,7 @@
   ;; The character count includes up to but excluding the cr lf that
   ;;  was read from the socket.
   ;;
+  ;; TODO: make it able to read from ssl socket
   (let* ((buff (get-line-buffer 0))
          (len  (length buff))
          (i 0)
@@ -1969,87 +1996,87 @@
           ;; with-timeout form to expire.
           (loop
 
-            (if* whole-count
-               then ; we should now read in this may bytes and
-                    ; append it to this buffer
-                    (multiple-value-bind (ans this-count)
-                        (get-block-of-data-from-server mailbox whole-count)
-                      ; now put this data in the current buffer
-                      (if* (> (+ i whole-count 5) len)
-                         then  ; grow the initial buffer
-                              (grow-buffer (+ i whole-count 100)))
+             (if* whole-count
+                then                    ; we should now read in this may bytes and
+                                        ; append it to this buffer
+                                        (multiple-value-bind (ans this-count)
+                                            (get-block-of-data-from-server mailbox whole-count)
+                                        ; now put this data in the current buffer
+                                          (if* (> (+ i whole-count 5) len)
+                                             then ; grow the initial buffer
+                                                   (grow-buffer (+ i whole-count 100)))
 
-                      (dotimes (ind this-count)
-                        (setf (schar buff i) (schar ans ind))
-                        (incf i))
-                      (setf (schar buff i) #\^b) ; end of inset string
-                      (incf i)
-                      (free-line-buffer ans)
-                      (setq whole-count nil)
-                      )
-             elseif ch
-               then ; we're growing the buffer holding the line data
-                    (grow-buffer (+ len 200))
-                    (setf (schar buff i) ch)
-                    (incf i))
-
-
-            (block timeout
-              (mp:with-timeout ((timeout mailbox)
-                                (po-error :timeout
-                                          :format-control "imap server failed to respond"))
-                ;; read up to lf  (lf most likely preceeded by cr)
-                (loop
-                  (setq ch (read-char p))
-                  (if* (eq #\linefeed ch)
-                     then ; end of line. Don't save the return
-                          (if* (and (> i 0)
-                                    (eq (schar buff (1- i)) #\return))
-                             then ; remove #\return, replace with newline
-                                  (decf i)
-                                  (setf (schar buff i) #\newline)
-                                  )
-                          ;; must check for an extended return value which
-                          ;; is indicated by a {nnn} at the end of the line
-                          (block count-check
-                            (let ((ind (1- i)))
-                              (if* (and (>= i 0) (eq (schar buff ind) #\}))
-                                 then (let ((count 0)
-                                            (mult 1))
-                                        (loop
-                                          (decf ind)
-                                          (if* (< ind 0)
-                                             then ; no of the form {nnn}
-                                                  (return-from count-check))
-                                          (setf ch (schar buff ind))
-                                          (if* (eq ch #\{)
-                                             then ; must now read that many bytes
-                                                  (setf (schar buff ind) #\^b)
-                                                  (setq whole-count count)
-                                                  (setq i (1+ ind))
-                                                  (return-from timeout)
-                                           elseif (<= #.(char-code #\0)
-                                                      (char-code ch)
-                                                      #.(char-code #\9))
-                                             then ; is a digit
-                                                  (setq count
-                                                    (+ count
-                                                       (* mult
-                                                          (- (char-code ch)
-                                                             #.(char-code #\0)))))
-                                                  (setq mult (* 10 mult))
-                                             else ; invalid form, get out
-                                                  (return-from count-check)))))))
+                                          (dotimes (ind this-count)
+                                            (setf (schar buff i) (schar ans ind))
+                                            (incf i))
+                                          (setf (schar buff i) #\^b) ; end of inset string
+                                          (incf i)
+                                          (free-line-buffer ans)
+                                          (setq whole-count nil)
+                                          )
+              elseif ch
+                then                    ; we're growing the buffer holding the line data
+                     (grow-buffer (+ len 200))
+                     (setf (schar buff i) ch)
+                     (incf i))
 
 
-                          (return-from get-line-from-server
-                            (values buff i))
-                     else ; save character
-                          (if* (>= i len)
-                             then ; need bigger buffer
-                                  (return))
-                          (setf (schar buff i) ch)
-                          (incf i)))))))
+             (block timeout
+               (mp:with-timeout ((timeout mailbox)
+                                  (po-error :timeout
+                                            :format-control "imap server failed to respond"))
+                 ;; read up to lf  (lf most likely preceeded by cr)
+                 (loop
+                    (setq ch (read-char p))
+                    (if* (eq #\linefeed ch)
+                       then             ; end of line. Don't save the return
+                            (if* (and (> i 0)
+                                      (eq (schar buff (1- i)) #\return))
+                               then     ; remove #\return, replace with newline
+                                    (decf i)
+                                    (setf (schar buff i) #\newline)
+                                    )
+                            ;; must check for an extended return value which
+                            ;; is indicated by a {nnn} at the end of the line
+                            (block count-check
+                              (let ((ind (1- i)))
+                                (if* (and (>= i 0) (eq (schar buff ind) #\}))
+                                   then (let ((count 0)
+                                              (mult 1))
+                                          (loop
+                                             (decf ind)
+                                             (if* (< ind 0)
+                                                then ; no of the form {nnn}
+                                                     (return-from count-check))
+                                             (setf ch (schar buff ind))
+                                             (if* (eq ch #\{)
+                                                then ; must now read that many bytes
+                                                     (setf (schar buff ind) #\^b)
+                                                     (setq whole-count count)
+                                                     (setq i (1+ ind))
+                                                     (return-from timeout)
+                                              elseif (<= #.(char-code #\0)
+                                                           (char-code ch)
+                                                           #.(char-code #\9))
+                                                then ; is a digit
+                                                     (setq count
+                                                           (+ count
+                                                              (* mult
+                                                                 (- (char-code ch)
+                                                                    #.(char-code #\0)))))
+                                                     (setq mult (* 10 mult))
+                                                else ; invalid form, get out
+                                                     (return-from count-check)))))))
+
+
+                            (return-from get-line-from-server
+                              (values buff i))
+                       else             ; save character
+                            (if* (>= i len)
+                               then     ; need bigger buffer
+                                    (return))
+                            (setf (schar buff i) ch)
+                            (incf i)))))))
       (error (con)
         ;; most likely error is that the server went away
         (ignore-errors (close p))
