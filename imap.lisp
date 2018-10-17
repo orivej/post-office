@@ -286,7 +286,7 @@
 
 
 ;; conditions
-(define-condition po-condition ()
+(define-condition po-condition (simple-condition)
   ;; used to notify user of things that shouldn't necessarily stop
   ;; program flow
   ((identifier
