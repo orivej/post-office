@@ -1311,6 +1311,29 @@
             (bss-int search str)
             (get-output-stream-string str))))
 
+(defgeneric format-date-for-imap (value)
+  (:method ((val t))
+    (po-error :syntax-error
+              :format-control "illegal value for date search ~s"
+              :format-arguments (list val)))
+  (:method ((val integer))
+    (universal-time-to-rfc822-date val))
+  
+  (:method ((val local-time:timestamp))
+    (format-date-for-imap
+     (local-time:timestamp-to-universal val)))
+  
+  (:method ((val string))
+    (cond
+      ((cl-ppcre:scan "^\\d{4}-\\d{2}-\\d{2}" val)
+       ;; If this is a date like 2018-10-05, then we need
+       ;; to transform it into the date suitable for IMAP:
+       ;; 5-Oct-2018, but it will be done automatically
+       ;; if we convert the string into the local-time:timestamp.
+       (format-date-for-imap (local-time:parse-timestring val)))
+      ;; Otherwise we just try to use the string as is.
+      (t val))))
+
 (defun bss-int (search str)
   ;;* it turns out that imap (on linux) is very picky about spaces....
   ;; any extra whitespace will result in failed searches
@@ -1343,7 +1366,7 @@
              ;; a sequence of messages
              (do* ((xsrch srch (cdr xsrch))
                    (val (car xsrch) (car xsrch)))
-                 ((null xsrch))
+                  ((null xsrch))
                (if* (integerp val)
                   then (format str "~s" val)
                 elseif (and (consp val)
@@ -1360,22 +1383,13 @@
              (do* ((x-args args (cdr x-args))
                    (val (car x-args) (car x-args))
                    (x-arginfo arginfo (cdr x-arginfo)))
-                 ((null x-args))
+                  ((null x-args))
                (ecase (car x-arginfo)
                  (:str
                   ; print it as a string
                   (format str " \"~a\"" (car x-args)))
                  (:date
-
-                  (if* (integerp val)
-                     then (setq val (universal-time-to-rfc822-date
-                                     val))
-                   elseif (not (stringp val))
-                     then (po-error :syntax-error
-                                    :format-control "illegal value for date search ~s"
-                                    :format-arguments (list val)))
-                  ;; val is now a string
-                  (format str " ~s" val))
+                  (format str " ~s" (format-date-for-imap val)))
                  (:number
 
                   (if* (not (integerp val))
