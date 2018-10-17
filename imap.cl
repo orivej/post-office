@@ -1,3 +1,10 @@
+;; -*- mode: common-lisp; package: net.post-office -*-
+;;
+;; imap.cl
+;; imap and pop interface
+;;
+;; See the file LICENSE for the full license governing this code.
+
 #+(version= 7 0)
 (sys:defpatch "imap" 1
   "v1: fetch-letter-sequence support."
@@ -15,27 +22,6 @@
   "v1: Add ssl/tls support for both imap/pop connections."
   :type :system
   :post-loadable t)
-
-;; -*- mode: common-lisp; package: net.post-office -*-
-;;
-;; imap.cl
-;; imap and pop interface
-;;
-;; copyright (c) 1999-2002 Franz Inc, Berkeley, CA - All rights reserved.
-;; copyright (c) 2002-2012 Franz Inc, Oakland, CA - All rights reserved.
-;;
-;; This code is free software; you can redistribute it and/or
-;; modify it under the terms of the version 2.1 of
-;; the GNU Lesser General Public License as published by 
-;; the Free Software Foundation, as clarified by the AllegroServe
-;; prequel found in license-allegroserve.txt.
-;;
-;; This code is distributed in the hope that it will be useful,
-;; but without any warranty; without even the implied warranty of
-;; merchantability or fitness for a particular purpose.  See the GNU
-;; Lesser General Public License for more details.
-;;
-;; $Id: imap.cl,v 1.32 2009/03/25 22:46:02 layer Exp $
 
 ;; Description:
 ;;- This code in this file obeys the Lisp Coding Standard found in

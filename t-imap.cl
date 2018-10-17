@@ -1,25 +1,10 @@
-;; copyright (c) 2002-2012 Franz Inc, Oakland, CA - All rights reserved.
-;;
-;; The software, data and information contained herein are proprietary
-;; to, and comprise valuable trade secrets of, Franz, Inc.  They are
-;; given in confidence by Franz, Inc. pursuant to a written license
-;; agreement, and may be stored and used only in accordance with the terms
-;; of such license.
-;;
-;; Restricted Rights Legend
-;; ------------------------
-;; Use, duplication, and disclosure of the software, data and information
-;; contained herein by any agency, department or entity of the U.S.
-;; Government are subject to restrictions of Restricted Rights for
-;; Commercial Software developed at private expense as specified in
-;; DOD FAR Supplement 52.227-7013 (c) (1) (ii), as applicable.
-;;
-;; $Id: t-imap.cl,v 1.9 2007/04/17 22:01:42 layer Exp $
+;; See the file LICENSE for the full license governing this code.
 
 ;; imap testing
 ;; requires smtp module too
 
 (eval-when (compile load eval)
+  (require :rfc2822)
   (require :smtp)
   (require :imap)
   (require :test))
@@ -243,6 +228,38 @@
    (net.post-office:decode-header-text "=?utf-8?q?=5BFranz_Wiki=5D_Update_of_=22Office/EmployeeDirectory=22_by_St?=
  =?utf-8?q?eveHaflich?="))
   )
+
+(defun test-parse-email-address ()
+  (dolist (good `(("foo@bar.com" "foo" "bar.com")
+		  ("layer@franz.com" "layer" "franz.com")
+		  ("
+
+layer@franz.com" "layer" "franz.com")
+		  (,(replace-re "XXlayer@franz.comX  X"
+				"X"
+				(format nil "~c" #\newline)
+				:single-line t)
+		   "layer" "franz.com")
+		  (,(replace-re "XXlayer@franz.comX  X"
+				"X"
+				(format nil "~c" #\return)
+				:single-line t)
+		   "layer" "franz.com")
+		  ;; local-part length = 64
+		  ("1234567890123456789012345678901234567890123456789012345678901234@foo.com"
+		   "1234567890123456789012345678901234567890123456789012345678901234"
+		   "foo.com")
+		  ))
+    (multiple-value-bind (local-part domain)
+	(net.mail:parse-email-address (first good))
+      (test-equal (second good) local-part)
+      (test-equal (third good) domain)))
+  (dolist (bad (list "@foo.com"
+		     ;; local-part length = 65
+		     "12345678901234567890123456789012345678901234567890123456789012345@foo.com"
+		     ))
+    (test-nil (net.mail:parse-email-address bad)))
+  )
 	  
     
 (defun test-imap ()
@@ -250,13 +267,15 @@
 		  #'(lambda (con)
 		      (format t "Got imap condition: ~a~%" con))))
     (test-mime)
+    (test-parse-email-address)
 ;;;; Only jkf is setup to run the tests.
     (when (string= "jkf" (sys:getenv "USER"))
       (test-connect)
       (test-sends)
       (test-flags)
       (test-mailboxes)
-      (test-pop))))
+      (test-pop)
+      )))
 
 
 (if* *do-test* then (do-test :imap #'test-imap))

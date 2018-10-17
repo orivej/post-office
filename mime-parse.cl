@@ -1,20 +1,7 @@
 ;; -*- mode: common-lisp; package: net.post-office -*-
 ;;
-;; copyright (c) 1999-2002 Franz Inc, Berkeley, CA - All rights reserved.
-;; copyright (c) 2002-2012 Franz Inc, Oakland, CA - All rights reserved.
+;; See the file LICENSE for the full license governing this code.
 ;;
-;; This code is free software; you can redistribute it and/or
-;; modify it under the terms of the version 2.1 of
-;; the GNU Lesser General Public License as published by 
-;; the Free Software Foundation, as clarified by the AllegroServe
-;; prequel found in license-allegroserve.txt.
-;;
-;; This code is distributed in the hope that it will be useful,
-;; but without any warranty; without even the implied warranty of
-;; merchantability or fitness for a particular purpose.  See the GNU
-;; Lesser General Public License for more details.
-;;
-;; $Id: mime-parse.cl,v 1.8 2008/05/21 21:01:56 layer Exp $
 
 (defpackage :net.post-office
   (:use #:lisp #:excl)
